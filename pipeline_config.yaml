@@ -1,0 +1,39 @@
+# GBM Research Automation Pipeline Configuration
+# All paths may be absolute or relative to the repository root.
+
+# ── Data inputs ────────────────────────────────────────────────────────────────
+data_paths:
+  cptac_rna: /Volumes/HIKSEMI/GBM_data_v2/CPTAC/rna
+  cptac_methylation: /Volumes/HIKSEMI/GBM_data_v2/CPTAC/methylation
+  cptac_clinical: /Volumes/HIKSEMI/GBM_data_v2/CPTAC/clinical
+  tcga_rna: /Volumes/HIKSEMI/GBM_data_v2/TCGA/rna
+  tcga_clinical: /Volumes/HIKSEMI/GBM_data_v2/TCGA/clinical
+  scrna_deg: /Volumes/HIKSEMI/GBM_data_v2/scRNA/deg
+  scrna_analysis: /Volumes/HIKSEMI/GBM_data_v2/scRNA/analysis
+
+# ── Output directories ─────────────────────────────────────────────────────────
+outputs_dir: outputs
+figures_dir: figures
+sections_dir: sections
+
+# ── Per-stage timeout (seconds) — hard limit, stage is killed at this point ────
+# 90 minutes = 5400 seconds
+timeout_seconds: 5400
+
+# ── Skill CLI entry points ─────────────────────────────────────────────────────
+# Each value is the executable (or command prefix) for the corresponding skill.
+# The pipeline passes additional arguments when invoking each skill.
+skills:
+  autoresearch: autoresearch
+  academic_plotting: academic-plotting
+  ml_paper_writing: ml-paper-writing
+  humanizer: humanizer
+
+# ── Cloud upload settings ──────────────────────────────────────────────────────
+cloud:
+  # Supported tools: rclone, aws, gsutil
+  tool: rclone
+  # Destination in rclone remote syntax, e.g. "gdrive:IEEE-ICMLC/outputs"
+  destination: "gdrive:IEEE-ICMLC/outputs"
+  # Maximum number of upload retries before giving up
+  max_retries: 5
