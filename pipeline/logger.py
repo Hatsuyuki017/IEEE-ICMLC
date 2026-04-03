@@ -2,6 +2,10 @@
 
 Writes newline-delimited JSON records to ``pipeline.log`` so that the
 user can review execution status after reconnecting to the machine.
+
+:class:`ReadmeLogger` additionally appends a human-readable markdown
+section to ``README.md`` after each stage, satisfying the requirement
+that all actual execution is recorded in README.md.
 """
 
 from __future__ import annotations
@@ -54,3 +58,54 @@ class ProgressLogger:
     def _append(self, record: dict) -> None:
         with open(self._log_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
+
+
+_STATUS_ICONS = {
+    "completed": "✓",
+    "failed": "✗",
+    "timeout": "⏱",
+    "skipped": "–",
+}
+
+
+class ReadmeLogger:
+    """Append structured stage records to ``README.md`` as markdown.
+
+    Each call to :meth:`log` appends a fenced section that records the
+    stage name, execution timestamp, status, elapsed time, any message,
+    and the list of produced artifacts.  This satisfies the requirement
+    that *all actual execution* is recorded in ``README.md``.
+    """
+
+    def __init__(self, readme_path: Path) -> None:
+        self._readme_path = readme_path
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def log(self, result: "StageResult") -> None:
+        """Append a markdown record for *result* to README.md."""
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        icon = _STATUS_ICONS.get(result.status.value, "?")
+        lines = [
+            "",
+            f"## Stage `{result.stage}` — {icon} {result.status.value.upper()}",
+            f"_Recorded: {timestamp}_",
+            "",
+            f"- **Status**: {result.status.value}",
+            f"- **Elapsed**: {result.elapsed_seconds:.1f}s",
+        ]
+        if result.message:
+            lines.append(f"- **Message**: {result.message}")
+        if result.artifacts:
+            lines.append("- **Artifacts**:")
+            for artifact in result.artifacts:
+                lines.append(f"  - `{artifact}`")
+        gate_passed = result.status.value == "completed"
+        lines.append(
+            f"- **Gate**: {'PASSED' if gate_passed else 'FAILED — pipeline halted'}"
+        )
+        lines.append("")
+        with open(self._readme_path, "a", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n")
