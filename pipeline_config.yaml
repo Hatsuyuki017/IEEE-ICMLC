@@ -1,0 +1,127 @@
+# GBM Research Automation Pipeline Configuration
+# Used by run_pipeline.py to orchestrate all research stages.
+
+pipeline:
+  # Maximum wall-clock minutes allowed per stage (S1-S9).
+  max_runtime_minutes: 90
+  # When false, existing figures in figures/ are reused instead of regenerated.
+  overwrite_figures: false
+  # When true, run_pipeline.py skips stages whose outputs already exist.
+  resume: true
+
+data:
+  # CPTAC-3 training cohort (RNA + clinical).
+  cptac_path: data/cptac_gbm_rna_clinical.csv
+  # TCGA-GBM external test cohort (RNA + clinical).
+  tcga_path: data/tcga_gbm_rna_clinical.csv
+  # scRNA-seq marker programs (17-patient atlas, Seurat DEG tables).
+  scrna_path: data/scrna_marker_programs.csv
+  # Folder containing reference papers / PDFs for autoresearch skill.
+  ref_folder: data/references/
+  # Directory where all pipeline outputs are written.
+  output_dir: results/
+
+figures:
+  # List of figures to generate in S7-S8.
+  - name: fig_louvain_umap
+    description: UMAP coloured by Louvain cluster (scRNA atlas)
+    outputs:
+      - figures/fig_louvain_umap.pdf
+      - figures/fig_louvain_umap.png
+  - name: fig_marker_heatmap
+    description: Heatmap of top marker genes per cluster
+    outputs:
+      - figures/fig_marker_heatmap.pdf
+      - figures/fig_marker_heatmap.png
+  - name: fig_auc_comparison
+    description: Bar chart comparing AUC across all benchmark models
+    outputs:
+      - figures/fig_auc_comparison.pdf
+      - figures/fig_auc_comparison.png
+  - name: fig_roc_curves
+    description: ROC curves for top-3 models (CPTAC → TCGA)
+    outputs:
+      - figures/fig_roc_curves.pdf
+      - figures/fig_roc_curves.png
+  - name: fig_kaplan_meier
+    description: Kaplan–Meier curves stratified by model risk score
+    outputs:
+      - figures/fig_kaplan_meier.pdf
+      - figures/fig_kaplan_meier.png
+  - name: fig_multimodal_overview
+    description: Overview diagram of the cross-scale fusion architecture
+    outputs:
+      - figures/fig_multimodal_overview.pdf
+      - figures/fig_multimodal_overview.png
+  - name: fig_methylation_heatmap
+    description: DNA methylation heatmap for CPTAC cohort
+    outputs:
+      - figures/fig_methylation_heatmap.pdf
+      - figures/fig_methylation_heatmap.png
+  - name: fig_methylation_volcano
+    description: Volcano plot of differentially methylated probes
+    outputs:
+      - figures/fig_methylation_volcano.pdf
+      - figures/fig_methylation_volcano.png
+  - name: fig_pca_tumor
+    description: PCA of tumour bulk RNA coloured by survival endpoint
+    outputs:
+      - figures/fig_pca_tumor.pdf
+      - figures/fig_pca_tumor.png
+  - name: fig_dotplot_markers
+    description: Dot plot of marker gene expression by cell type
+    outputs:
+      - figures/fig_dotplot_markers.pdf
+      - figures/fig_dotplot_markers.png
+  - name: fig_umap_patients
+    description: UMAP of patient embeddings from the transformer
+    outputs:
+      - figures/fig_umap_patients.pdf
+      - figures/fig_umap_patients.png
+  - name: fig_violin_celltypes
+    description: Violin plots of cell-type composition per patient
+    outputs:
+      - figures/fig_violin_celltypes.pdf
+      - figures/fig_violin_celltypes.png
+  - name: fig_upset_modalities
+    description: UpSet plot of overlapping modality availability
+    outputs:
+      - figures/fig_upset_modalities.pdf
+      - figures/fig_upset_modalities.png
+  - name: fig_venn5_modalities
+    description: Venn diagram for 5-modality patient overlap
+    outputs:
+      - figures/fig_venn5_modalities.pdf
+      - figures/fig_venn5_modalities.png
+  - name: fig_volcano
+    description: Volcano plot for differentially expressed genes
+    outputs:
+      - figures/fig_volcano.pdf
+      - figures/fig_volcano.png
+  - name: fig_scrna_atlas
+    description: Full single-cell RNA atlas overview (multi-panel)
+    outputs:
+      - figures/fig_scrna_atlas.pdf
+      - figures/fig_scrna_atlas.png
+
+cloud:
+  # Set to true to enable automatic upload of results after each stage.
+  enabled: false
+  # Remote target URI (e.g. s3://bucket/path or rsync user@host:/path).
+  # Replace with your actual remote target before enabling.
+  remote_target: ""
+  # Number of upload retries on failure.
+  retry_attempts: 3
+  # Seconds to wait between retry attempts.
+  retry_delay_seconds: 10
+
+skills:
+  # Command template for the autoresearch skill (S1-S5).
+  # Use {tasks} and {output_dir} as placeholders.
+  autoresearch_cmd: "autoresearch --tasks {tasks} --output-dir {output_dir} --ref-folder {ref_folder}"
+  # Command template for the academic-plotting skill (S7-S8).
+  plotting_cmd: "academic-plotting --config pipeline_config.yaml"
+  # Command template for the ml-paper-writing skill (S9).
+  paper_writing_cmd: "ml-paper-writing --template main.tex --sections-dir sections/ --output-dir sections/"
+  # Command template for the humanizer skill (post-S9).
+  humanizer_cmd: "humanizer --input {input_file} --output {input_file}"
