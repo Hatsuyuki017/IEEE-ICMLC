@@ -1,0 +1,38 @@
+# Pipeline outputs (generated at runtime — not committed)
+outputs/
+.pipeline_cache.json
+pipeline.log
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
