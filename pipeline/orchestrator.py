@@ -9,7 +9,7 @@ from typing import Optional
 from pipeline.base import BaseStage, StageResult, StageStatus
 from pipeline.cache import CacheManager
 from pipeline.config import ConfigLoader
-from pipeline.logger import ProgressLogger
+from pipeline.logger import ProgressLogger, ReadmeLogger
 from pipeline.stages.model_tuning import ModelTuningStage
 from pipeline.stages.visualization import VisualizationStage
 from pipeline.stages.paper_writing import PaperWritingStage
@@ -26,15 +26,25 @@ _ORDERED_STAGES: list[BaseStage] = [
 
 _STAGE_MAP: dict[str, BaseStage] = {s.name: s for s in _ORDERED_STAGES}
 
+_GATE_FAILURE_STATUSES = {StageStatus.FAILED, StageStatus.TIMEOUT}
+
 
 class PipelineOrchestrator:
-    """Run pipeline stages in order, honouring caching and timeouts."""
+    """Run pipeline stages in order, honouring caching and timeouts.
+
+    Execution halts immediately when a stage fails its acceptance gate
+    (i.e. returns :attr:`~pipeline.base.StageStatus.FAILED` or
+    :attr:`~pipeline.base.StageStatus.TIMEOUT`).  Each stage result is
+    appended to ``README.md`` so that all actual execution is recorded
+    there.
+    """
 
     def __init__(self, config: ConfigLoader, force: bool = False) -> None:
         self._config = config
         self._force = force
         self._cache = CacheManager(config.repo_root)
         self._logger = ProgressLogger(config.repo_root / "pipeline.log")
+        self._readme_logger = ReadmeLogger(config.repo_root / "README.md")
 
     def run(self, stages: Optional[list[str]] = None) -> int:
         """Execute the pipeline.
@@ -50,6 +60,13 @@ class PipelineOrchestrator:
         int
             ``0`` if all stages completed or were skipped, ``1`` if any
             stage failed or timed out.
+
+        Notes
+        -----
+        The pipeline enforces sequential gate logic: if a stage fails its
+        acceptance gate, execution stops immediately and subsequent stages
+        are **not** run.  The failure is recorded in ``README.md`` before
+        halting.
         """
         if stages is None:
             stage_list = _ORDERED_STAGES
@@ -66,13 +83,23 @@ class PipelineOrchestrator:
             self._logger.log_message(stage.name, "INFO", "Starting stage.")
             result = stage.run(self._config, self._cache, force=self._force)
             self._logger.log(result)
+            self._readme_logger.log(result)
             results.append(result)
+
+            if result.status in _GATE_FAILURE_STATUSES:
+                self._logger.log_message(
+                    stage.name,
+                    "ERROR",
+                    f"Stage gate failed with status {result.status.value!r}; "
+                    "halting pipeline.  Fix the failure before proceeding to "
+                    "the next stage.",
+                )
+                break
 
         total_elapsed = time.monotonic() - pipeline_start
         self._print_summary(results, total_elapsed)
 
-        bad_statuses = {StageStatus.FAILED, StageStatus.TIMEOUT}
-        has_failure = any(r.status in bad_statuses for r in results)
+        has_failure = any(r.status in _GATE_FAILURE_STATUSES for r in results)
         return 1 if has_failure else 0
 
     # ------------------------------------------------------------------
